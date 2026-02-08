@@ -62,6 +62,8 @@ export default function NotificationsManagement() {
     setIsSending(true)
 
     try {
+      console.log('[v0] Sending notifications to', selectedClients.length, 'clients')
+      
       // Insert notifications into database
       const notifications = selectedClients.map(clientId => ({
         client_id: clientId,
@@ -71,21 +73,64 @@ export default function NotificationsManagement() {
         created_at: new Date().toISOString()
       }))
 
-      const { error } = await supabase
+      const { error: dbError } = await supabase
         .from('notifications')
         .insert(notifications)
 
-      if (error) {
-        console.error('Error sending notifications:', error)
-        alert('Erro ao enviar notificações')
-      } else {
-        alert(`Notificação enviada para ${selectedClients.length} cliente(s)!`)
-        setMessage('')
-        setTitle('NovaPlay')
-        setSelectedClients([])
+      if (dbError) {
+        console.error('[v0] Error saving notifications to database:', dbError)
+        alert('Erro ao salvar notificações no banco de dados')
+        return
       }
+
+      console.log('[v0] Notifications saved to database')
+
+      // Send push notifications to all selected clients
+      const pushPromises = selectedClients.map(async (clientId) => {
+        try {
+          const response = await fetch('/api/push-notifications', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              clientId,
+              title: title,
+              message: message,
+              type: 'info'
+            })
+          })
+
+          if (!response.ok) {
+            const error = await response.json()
+            console.error('[v0] Push notification failed for client', clientId, error)
+            return { success: false, clientId }
+          }
+
+          console.log('[v0] Push notification sent to client', clientId)
+          return { success: true, clientId }
+        } catch (error) {
+          console.error('[v0] Error sending push notification:', error)
+          return { success: false, clientId }
+        }
+      })
+
+      const results = await Promise.all(pushPromises)
+      const successCount = results.filter(r => r.success).length
+
+      console.log('[v0] Push notifications sent:', successCount, 'of', results.length)
+
+      alert(
+        `Notificação salva e enviada!\n\n` +
+        `✅ Salva no banco: ${selectedClients.length} cliente(s)\n` +
+        `📱 Push enviado: ${successCount} de ${results.length} dispositivo(s)`
+      )
+      
+      setMessage('')
+      setTitle('NovaPlay')
+      setSelectedClients([])
     } catch (error) {
-      console.error('Error:', error)
+      console.error('[v0] Error sending notifications:', error)
       alert('Erro ao enviar notificações')
     } finally {
       setIsSending(false)

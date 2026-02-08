@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { LogOut, Copy, Check, Server, CreditCard, AlertCircle, CheckCircle2, XCircle, Calendar, User as UserIcon, Key, MessageSquare, Mail } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { registerServiceWorker, requestNotificationPermission, showLocalNotification } from '@/lib/push-notifications'
+import { usePushNotifications } from '@/hooks/use-push-notifications'
 
 export default function ClientDashboard() {
   const router = useRouter()
@@ -25,10 +25,17 @@ export default function ClientDashboard() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [copied, setCopied] = useState<{ [key: string]: boolean }>({})
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  
+  const { isSupported, isSubscribed, subscribe: subscribeToPush } = usePushNotifications(client?.id)
 
-  const setupPushNotifications = () => {
-    registerServiceWorker()
-    requestNotificationPermission()
+  const setupPushNotifications = async () => {
+    if (isSupported && !isSubscribed && client?.id) {
+      console.log('[v0] Setting up push notifications for client:', client.id)
+      const success = await subscribeToPush()
+      if (success) {
+        console.log('[v0] Push notifications enabled successfully')
+      }
+    }
   }
 
   useEffect(() => {
