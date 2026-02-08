@@ -1,17 +1,19 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
-if (!supabaseUrl) {
-  throw new Error('Missing environment variable: NEXT_PUBLIC_SUPABASE_URL')
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn('[v0] Supabase environment variables not set. Using placeholder client.')
+    // Return a mock client for development/build time
+    return createClient('https://placeholder.supabase.co', 'placeholder-key')
+  }
+
+  return createClient(supabaseUrl, supabaseAnonKey)
 }
 
-if (!supabaseAnonKey) {
-  throw new Error('Missing environment variable: NEXT_PUBLIC_SUPABASE_ANON_KEY')
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = getSupabaseClient()
 
 export type Client = {
   id: string
